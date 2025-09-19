@@ -14,8 +14,7 @@ jobs:
   build-macos-bottle:
     runs-on: macos-latest
     env:
-      # 强制 Homebrew 使用本地 checkout / 避免 API 查询（可避免下载 formula.jws.json）
-      HOMEBREW_NO_INSTALL_FROM_API: "1"
+      HOMEBREW_DEVELOPER: "1"
     steps:
       - name: Checkout repo (for scripts/patches)
         uses: actions/checkout@v4
@@ -24,31 +23,27 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # 配置（改成你要的 formula）
-          FORMULA=yourformula      # <-- 填公式名字，如 htop
+          FORMULA=qt
           RBFILE="${FORMULA}.rb"
           WORKDIR="$GITHUB_WORKSPACE/build"
           ARTDIR="$GITHUB_WORKSPACE/artifacts"
           mkdir -p "$WORKDIR" "$ARTDIR"
           cd "$WORKDIR"
 
-          # 下载官方 formula 的最新 .rb（HEAD）
-          curl -fsSL \
-            "https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/${RBFILE}" \
-            -o "${RBFILE}"
+          # libpng version mismatch issue, https://stackoverflow.com/questions/36523911#answer-68936263
+          curl -kOs https://gist.githubusercontent.com/nicerobot/1515915/raw/uninstall-mono.sh
+          chmod +x ./uninstall-mono.sh
+          ./uninstall-mono.sh
 
-          # === 在此处对 ${RBFILE} 做你的修改 ===
-          # 举例：把 configure 的某个 flag 改成你想要的（请按实际公式改写 sed）
-          # 注意：macOS 上 sed -i 语法与 linux 不同，这里用带备份的写法，安全。
-          sed -i.bak 's/--enable-foo/--enable-bar/g' "${RBFILE}"
+          curl -fsSLO "https://raw.githubusercontent.com/Homebrew/homebrew-core/main/Formula/q/qt.rb"
 
-          # 你也可以运行更复杂的 ruby/perl 脚本去 patch
-          # ruby -i -pe "gsub(/pattern/, 'replacement')" "${RBFILE}"
+          cp "$GITHUB_WORKSPACE/patches/${FORMULA}.patch" .
+          patch "${RBFILE}" < "${FORMULA}.patch"
 
-          # 安装（为 bottling 进行构建）
-          # --build-bottle 表示为生成 bottle 而从源码构建
           brew update
-          brew install --build-bottle "./${RBFILE}"
+          brew uninstall cmake
+          brew install --build-from-source --formula ./${RBFILE}
+          # brew install --build-bottle "./${RBFILE}"
 
           # 生成 bottle 文件（tar.gz），--skip-relocation 可视情况使用
           brew bottle "${FORMULA}" --skip-relocation
@@ -75,5 +70,3 @@ jobs:
           files: artifacts/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          echo test, and deploy your project.

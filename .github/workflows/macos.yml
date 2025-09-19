@@ -1,23 +1,38 @@
-# This is a basic workflow to help you get started with Actions
-
 name: Build qt Bottle for macOS 12 (patch official formula)
 
-# Controls when the workflow will run
 on:
   schedule:
-    - cron: '0 3 * * 1'   # 每周一 UTC 03:00（按需改）
-
-  # Allows you to run this workflow manually from the Actions tab
+    - cron: '0 3 * * 1'   # 每周一 UTC 03:00
   workflow_dispatch:
 
 jobs:
   build-macos-bottle:
-    runs-on: macos-latest
+    runs-on: macos-14
     env:
       HOMEBREW_DEVELOPER: "1"
     steps:
       - name: Checkout repo (for scripts/patches)
         uses: actions/checkout@v4
+
+      # 缓存 Homebrew 的下载
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            ~/Library/Caches/Homebrew/downloads
+          key: brew-cache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
+          restore-keys: |
+            brew-cache-${{ runner.os }}-
+
+      # 缓存 ccache
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
 
       - name: Prepare and build bottle (patch formula & bottle)
         run: |
@@ -35,30 +50,30 @@ jobs:
           chmod +x ./uninstall-mono.sh
           ./uninstall-mono.sh
 
-          curl -fsSLO "https://raw.githubusercontent.com/Homebrew/homebrew-core/main/Formula/q/qt.rb"
+          curl -fsSLO "https://raw.githubusercontent.com/Homebrew/homebrew-core/main/Formula/${FORMULA:0:1}/${RBFILE}"
 
           cp "$GITHUB_WORKSPACE/patches/${FORMULA}.patch" .
           patch "${RBFILE}" < "${FORMULA}.patch"
 
-          brew update
-          brew uninstall cmake
-          brew install --build-from-source --formula ./${RBFILE}
-          # brew install --build-bottle "./${RBFILE}"
+          # 安装 ccache 并配置 Homebrew 使用它
+          brew install ccache
+          export HOMEBREW_CC="ccache clang"
+          export HOMEBREW_CXX="ccache clang++"
 
-          # 生成 bottle 文件（tar.gz），--skip-relocation 可视情况使用
+          brew uninstall --ignore-dependencies cmake
+
+          brew install --build-bottle "./${RBFILE}"
+
+          # 生成 bottle 文件
           brew bottle "${FORMULA}" --skip-relocation
 
           # 把 bottle 移到 artifacts 目录
           mv ./*.tar.gz "$ARTDIR/"
 
-          # （可选）导出 bottle 的 JSON，然后写回 formula（--write 会 write bottle DSL 回公式）
-          # brew bottle --json "${FORMULA}" > bottle.json
-          # brew bottle --write bottle.json
-
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${ { github.repository } }-${{ matrix.os || 'macos' }}-bottle
+          name: ${{ github.repository }}-macos-bottle
           path: artifacts/*.tar.gz
 
       - name: Create/Update GitHub Release 'nightly' and attach bottle

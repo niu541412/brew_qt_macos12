@@ -1,0 +1,79 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Build qt Bottle for macOS 12 (patch official formula)
+
+# Controls when the workflow will run
+on:
+  schedule:
+    - cron: '0 3 * * 1'   # 每周一 UTC 03:00（按需改）
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-macos-bottle:
+    runs-on: macos-latest
+    env:
+      # 强制 Homebrew 使用本地 checkout / 避免 API 查询（可避免下载 formula.jws.json）
+      HOMEBREW_NO_INSTALL_FROM_API: "1"
+    steps:
+      - name: Checkout repo (for scripts/patches)
+        uses: actions/checkout@v4
+
+      - name: Prepare and build bottle (patch formula & bottle)
+        run: |
+          set -euxo pipefail
+
+          # 配置（改成你要的 formula）
+          FORMULA=yourformula      # <-- 填公式名字，如 htop
+          RBFILE="${FORMULA}.rb"
+          WORKDIR="$GITHUB_WORKSPACE/build"
+          ARTDIR="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$WORKDIR" "$ARTDIR"
+          cd "$WORKDIR"
+
+          # 下载官方 formula 的最新 .rb（HEAD）
+          curl -fsSL \
+            "https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/${RBFILE}" \
+            -o "${RBFILE}"
+
+          # === 在此处对 ${RBFILE} 做你的修改 ===
+          # 举例：把 configure 的某个 flag 改成你想要的（请按实际公式改写 sed）
+          # 注意：macOS 上 sed -i 语法与 linux 不同，这里用带备份的写法，安全。
+          sed -i.bak 's/--enable-foo/--enable-bar/g' "${RBFILE}"
+
+          # 你也可以运行更复杂的 ruby/perl 脚本去 patch
+          # ruby -i -pe "gsub(/pattern/, 'replacement')" "${RBFILE}"
+
+          # 安装（为 bottling 进行构建）
+          # --build-bottle 表示为生成 bottle 而从源码构建
+          brew update
+          brew install --build-bottle "./${RBFILE}"
+
+          # 生成 bottle 文件（tar.gz），--skip-relocation 可视情况使用
+          brew bottle "${FORMULA}" --skip-relocation
+
+          # 把 bottle 移到 artifacts 目录
+          mv ./*.tar.gz "$ARTDIR/"
+
+          # （可选）导出 bottle 的 JSON，然后写回 formula（--write 会 write bottle DSL 回公式）
+          # brew bottle --json "${FORMULA}" > bottle.json
+          # brew bottle --write bottle.json
+
+      - name: Upload bottle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${ { github.repository } }-${{ matrix.os || 'macos' }}-bottle
+          path: artifacts/*.tar.gz
+
+      - name: Create/Update GitHub Release 'nightly' and attach bottle
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly bottle
+          files: artifacts/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          echo test, and deploy your project.

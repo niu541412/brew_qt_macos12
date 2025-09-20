@@ -1,6 +1,6 @@
-name: Build qt Bottle for macOS 12 (patch official formula)
-
+name: Build qt Bottle (DEPLOYMENT_TARGET macOS 12)
 on:
+  push:
   schedule:
     - cron: '0 3 * * 1'   # 每周一 UTC 03:00
   workflow_dispatch:
@@ -25,14 +25,14 @@ jobs:
           restore-keys: |
             brew-cache-${{ runner.os }}-
 
-      # # 缓存 ccache
-      # - name: Cache ccache
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.ccache
-      #     key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
-      #     restore-keys: |
-      #       ccache-${{ runner.os }}-
+      # 缓存 ccache
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
 
       - name: Prepare and build bottle (patch formula & bottle)
         run: |
@@ -56,9 +56,8 @@ jobs:
           patch "${RBFILE}" < "${FORMULA}.patch"
 
           # # 安装 ccache 并配置 Homebrew 使用它
-          # brew install ccache
-          # export HOMEBREW_CC="ccache clang"
-          # export HOMEBREW_CXX="ccache clang++"
+          brew install ccache
+          export PATH="/usr/local/opt/ccache/libexec:$PATH"
 
           brew uninstall --ignore-dependencies cmake
 
@@ -73,7 +72,7 @@ jobs:
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.repository }}-macos-bottle
+          name: qt-macos-bottle.tar.gz
           path: artifacts/*.tar.gz
 
       - name: Create/Update GitHub Release 'nightly' and attach bottle

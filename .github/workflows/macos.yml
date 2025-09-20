@@ -25,14 +25,14 @@ jobs:
           restore-keys: |
             brew-cache-${{ runner.os }}-
 
-      # 缓存 ccache
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-
+      # # 缓存 ccache
+      # - name: Cache ccache
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.ccache
+      #     key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
+      #     restore-keys: |
+      #       ccache-${{ runner.os }}-
 
       - name: Prepare and build bottle (patch formula & bottle)
         run: |
@@ -55,10 +55,10 @@ jobs:
           cp "$GITHUB_WORKSPACE/patches/${FORMULA}.patch" .
           patch "${RBFILE}" < "${FORMULA}.patch"
 
-          # 安装 ccache 并配置 Homebrew 使用它
-          brew install ccache
-          export HOMEBREW_CC="ccache clang"
-          export HOMEBREW_CXX="ccache clang++"
+          # # 安装 ccache 并配置 Homebrew 使用它
+          # brew install ccache
+          # export HOMEBREW_CC="ccache clang"
+          # export HOMEBREW_CXX="ccache clang++"
 
           brew uninstall --ignore-dependencies cmake
 

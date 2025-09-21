@@ -1,9 +1,13 @@
 name: Build qt Bottle (DEPLOYMENT_TARGET macOS 12)
+
 on:
-  push:
-  schedule:
-    - cron: '0 3 * * 1'   # 每周一 UTC 03:00
-  workflow_dispatch:
+  push:                       # 当 push 到仓库时触发
+  schedule:                   # 定时任务（每周一 UTC 03:00）
+    - cron: '0 3 * * 1'
+  workflow_dispatch:           # 手动触发
+
+permissions:
+  contents: write   # 必须：允许创建/更新 Release
 
 jobs:
   build-macos-bottle:
@@ -11,10 +15,11 @@ jobs:
     env:
       HOMEBREW_DEVELOPER: "1"
     steps:
+      # 拉取当前 repo，用于读取补丁和脚本
       - name: Checkout repo (for scripts/patches)
         uses: actions/checkout@v4
 
-      # 缓存 Homebrew 的下载
+      # 缓存 Homebrew 下载的依赖，加速重复构建
       - name: Cache Homebrew downloads
         uses: actions/cache@v4
         with:
@@ -25,7 +30,7 @@ jobs:
           restore-keys: |
             brew-cache-${{ runner.os }}-
 
-      # 缓存 ccache
+      # 缓存 ccache（编译缓存），进一步加速重复构建
       - name: Cache ccache
         uses: actions/cache@v4
         with:
@@ -45,36 +50,40 @@ jobs:
           mkdir -p "$WORKDIR" "$ARTDIR"
           cd "$WORKDIR"
 
-          # libpng version mismatch issue, https://stackoverflow.com/questions/36523911#answer-68936263
+          # 🔧 修复 macOS 上的 libpng/mono 冲突问题
           curl -kOs https://gist.githubusercontent.com/nicerobot/1515915/raw/uninstall-mono.sh
           chmod +x ./uninstall-mono.sh
           ./uninstall-mono.sh
 
+          # 从 Homebrew 官方仓库获取 formula
           curl -fsSLO "https://raw.githubusercontent.com/Homebrew/homebrew-core/main/Formula/${FORMULA:0:1}/${RBFILE}"
 
+          # 应用自定义补丁
           cp "$GITHUB_WORKSPACE/patches/${FORMULA}.patch" .
           patch "${RBFILE}" < "${FORMULA}.patch"
 
-          # # 安装 ccache 并配置 Homebrew 使用它
+          # ⚡ 启用 ccache，加速编译
           brew install ccache
           export PATH="/usr/local/opt/ccache/libexec:$PATH"
 
+          # 移除 cmake，避免依赖冲突
           brew uninstall --ignore-dependencies cmake
 
+          # 编译并生成 bottle
           brew install --build-bottle "./${RBFILE}"
-
-          # 生成 bottle 文件
           brew bottle "${FORMULA}" --skip-relocation
 
-          # 把 bottle 移到 artifacts 目录
+          # 移动结果文件到 artifacts
           mv ./*.tar.gz "$ARTDIR/"
 
+      # 上传 bottle 文件作为构建产物
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qt-macos-bottle.tar.gz
+          name: qt-macos-bottle
           path: artifacts/*.tar.gz
 
+      # 创建/更新 nightly Release，并附加 bottle 文件
       - name: Create/Update GitHub Release 'nightly' and attach bottle
         if: always()
         uses: softprops/action-gh-release@v2

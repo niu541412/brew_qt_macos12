@@ -70,7 +70,7 @@ jobs:
           brew uninstall --ignore-dependencies cmake
 
           # 编译并生成 bottle
-          brew install --build-bottle "./${RBFILE}"
+          brew install --build-bottle  --formula "./${RBFILE}"
           brew bottle "${FORMULA}" --skip-relocation
 
           # 移动结果文件到 artifacts

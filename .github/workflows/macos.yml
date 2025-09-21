@@ -30,14 +30,14 @@ jobs:
           restore-keys: |
             brew-cache-${{ runner.os }}-
 
-      # 缓存 ccache（编译缓存），进一步加速重复构建
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-
+      # # 缓存 ccache（编译缓存），进一步加速重复构建
+      # - name: Cache ccache
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/.ccache
+      #     key: ccache-${{ runner.os }}-${{ hashFiles('patches/*.patch') }}
+      #     restore-keys: |
+      #       ccache-${{ runner.os }}-
 
       - name: Prepare and build bottle (patch formula & bottle)
         run: |
@@ -62,9 +62,9 @@ jobs:
           cp "$GITHUB_WORKSPACE/patches/${FORMULA}.patch" .
           patch "${RBFILE}" < "${FORMULA}.patch"
 
-          # ⚡ 启用 ccache，加速编译
-          brew install ccache
-          export PATH="/usr/local/opt/ccache/libexec:$PATH"
+          # # ⚡ 启用 ccache，加速编译
+          # brew install ccache
+          # export PATH="/usr/local/opt/ccache/libexec:$PATH"
 
           # 移除 cmake，避免依赖冲突
           brew uninstall --ignore-dependencies cmake

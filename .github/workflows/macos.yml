@@ -71,7 +71,7 @@ jobs:
 
           # 编译并生成 bottle
           brew install --build-bottle  --formula "./${RBFILE}"
-          brew bottle "${FORMULA}" --skip-relocation
+          brew bottle "${FORMULA}" --no-rebuild
 
           # 移动结果文件到 artifacts
           mv ./*.tar.gz "$ARTDIR/"

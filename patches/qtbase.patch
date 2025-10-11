@@ -1,0 +1,24 @@
+--- qtbase.rb
++++ qtbase.rb
+@@ -93,6 +93,11 @@ class Qtbase < Formula
+     # https://bugreports.qt.io/browse/QTBUG-113391
+     ENV.runtime_cpu_detection
+ 
++    inreplace "src/corelib/kernel/qcore_mac.mm",
++              "(current.majorVersion() == 10 && current.minorVersion() >= 16)", 
++              "((current.majorVersion() == 10 && current.minorVersion() >= 16) || 
++              (current.majorVersion() == 11) || (current.majorVersion() == 12))"
++
+     # Remove bundled libraries
+     rm_r(%w[
+       src/3rdparty/double-conversion
+@@ -145,7 +150,8 @@ class Qtbase < Formula
+       deploy = [MacOS.version, MacOSVersion.from_symbol(:sonoma)].min
+ 
+       %W[
+-        -DCMAKE_OSX_DEPLOYMENT_TARGET=#{deploy}.0
++        -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
++        -DQT_BUILD_TESTS=OFF -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TOOLS=OFF
+         -DFEATURE_relocatable=ON
+         -DQT_NO_APPLE_SDK_AND_XCODE_CHECK=ON
+       ]

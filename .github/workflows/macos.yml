@@ -1,4 +1,4 @@
-name: Build qt Bottle (DEPLOYMENT_TARGET macOS 12)
+name: Build qtbase Bottle (DEPLOYMENT_TARGET macOS 12)
 
 on:
   push:                       # 当 push 到仓库时触发
@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          FORMULA=qt
+          FORMULA=qtbase
           RBFILE="${FORMULA}.rb"
           WORKDIR="$GITHUB_WORKSPACE/build"
           ARTDIR="$GITHUB_WORKSPACE/artifacts"
@@ -71,7 +71,8 @@ jobs:
 
           # 编译并生成 bottle
           brew install --build-bottle  --formula "./${RBFILE}"
-          brew bottle "${FORMULA}" --no-rebuild
+          echo "########## [info]Installed bottles:"
+          brew bottle "${FORMULA}" --no-rebuild --force-core-tap 
 
           # 移动结果文件到 artifacts
           mv ./*.tar.gz "$ARTDIR/"
@@ -80,7 +81,7 @@ jobs:
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: qt-macos-bottle
+          name: qtbase-macos-bottle
           path: artifacts/*.tar.gz
 
       # 创建/更新 nightly Release，并附加 bottle 文件

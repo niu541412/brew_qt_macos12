@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-macos-bottle:
-    runs-on: macos-14
+    runs-on: macos-15-intel
     env:
       HOMEBREW_DEVELOPER: "1"
     steps:

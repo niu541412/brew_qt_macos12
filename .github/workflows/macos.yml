@@ -84,6 +84,26 @@ jobs:
           name: qtbase-macos-bottle
           path: artifacts/*.tar.gz
 
+      # 在上传前删除 nightly 里旧的 qtbase bottle
+      - name: Delete old qtbase bottles from nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+      
+          TAG=nightly
+          PREFIX="qtbase--"
+      
+          # 列出 assets，筛选 qtbase 的，逐个删除
+          gh release view "$TAG" --json assets \
+            -q '.assets[].name' | grep "^${PREFIX}" || exit 0
+      
+          gh release view "$TAG" --json assets \
+            -q '.assets[].name' | grep "^${PREFIX}" | while read asset; do
+              echo "Deleting old asset: $asset"
+              gh release delete-asset "$TAG" "$asset" -y
+            done
+
       # 创建/更新 nightly Release，并附加 bottle 文件
       - name: Create/Update GitHub Release 'nightly' and attach bottle
         if: always()

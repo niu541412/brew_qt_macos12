@@ -1,18 +1,24 @@
 --- qtbase.rb
 +++ qtbase.rb
-@@ -93,6 +93,11 @@ class Qtbase < Formula
+@@ -94,11 +94,17 @@ class Qtbase < Formula
+     pour_bottle? only_if: :default_prefix
+   end
+ 
++  patch :DATA
+   def install
+     # Allow -march options to be passed through, as Qt builds
+     # arch-specific code with runtime detection of capabilities:
      # https://bugreports.qt.io/browse/QTBUG-113391
      ENV.runtime_cpu_detection
- 
++
 +    inreplace "src/corelib/kernel/qcore_mac.mm",
 +              "(current.majorVersion() == 10 && current.minorVersion() >= 16)", 
 +              "((current.majorVersion() == 10 && current.minorVersion() >= 16) || 
 +              (current.majorVersion() == 11) || (current.majorVersion() == 12))"
-+
+ 
      # Remove bundled libraries
      rm_r(%w[
-       src/3rdparty/double-conversion
-@@ -145,7 +150,8 @@ class Qtbase < Formula
+@@ -152,7 +158,8 @@ class Qtbase < Formula
        deploy = [MacOS.version, MacOSVersion.from_symbol(:sonoma)].min
  
        %W[
@@ -22,3 +28,23 @@
          -DFEATURE_relocatable=ON
          -DQT_NO_APPLE_SDK_AND_XCODE_CHECK=ON
        ]
+@@ -288,3 +295,19 @@ end
+     assert_equal HOMEBREW_PREFIX.to_s, shell_output("#{bin}/qmake -query QT_INSTALL_PREFIX").chomp
+   end
+ end
++__END__
++--- a/src/gui/platform/darwin/qappleiconengine.mm
+++++ b/src/gui/platform/darwin/qappleiconengine.mm
++@@ -381,8 +381,10 @@
++ 
++     // Then switch back to monochrome, as palette mode gives a different look
++     // than monochrome, even with a single color.
++-    config = [config configurationByApplyingConfiguration:
++-        [NSImageSymbolConfiguration configurationPreferringMonochrome]];
+++    if (@available(macOS 13.0, *)) {
+++        config = [config configurationByApplyingConfiguration:
+++            [NSImageSymbolConfiguration configurationPreferringMonochrome]];
+++    }
++ 
++     return [image imageWithSymbolConfiguration:config];
++ }

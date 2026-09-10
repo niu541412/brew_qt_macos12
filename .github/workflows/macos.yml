@@ -72,7 +72,7 @@ jobs:
           # 编译并生成 bottle
           brew install --build-bottle  --formula "./${RBFILE}"
           echo "########## [info]Installed bottles:"
-          brew bottle "./${RBFILE}" --no-rebuild
+          brew bottle "./${RBFILE}" --force-core-tap --no-rebuild
 
           # 移动结果文件到 artifacts
           mv ./*.tar.gz "$ARTDIR/"
